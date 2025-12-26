@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة DARKSHELL | محمد السيد خليل</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --main: #00ff00; --bg: #0a0a0a; --card: #151515; }
+        body { background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+        .card { background: var(--card); border: 1px solid #333; padding: 20px; border-radius: 12px; }
+        h2 { color: var(--main); border-bottom: 1px solid var(--main); padding-bottom: 10px; }
+        input, textarea { width: 100%; padding: 10px; margin: 10px 0; background: #000; border: 1px solid #444; color: #fff; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: var(--main); border: none; font-weight: bold; cursor: pointer; border-radius: 5px; margin-top: 5px; }
+        .user-row { background: #000; padding: 10px; margin-bottom: 8px; border-radius: 8px; border-right: 5px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .verified-badge { color: #3897f0; margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+<h1>💀 لوحة التحكم - المطور محمد السيد خليل</h1>
+
+<div class="grid">
+    <div class="card">
+        <h2>📥 قائمة الأعضاء والطلبات</h2>
+        <div id="requests-list">جاري التحميل...</div>
+    </div>
+
+    <div class="card">
+        <h2>👤 التحكم في الحساب</h2>
+        <input type="text" id="target-id" placeholder="أدخل ID المستخدم">
+        <input type="number" id="coins-amount" placeholder="تعديل العملات (+/-)">
+        <button onclick="updateCoins()">تعديل الرصيد 💰</button>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button onclick="verifyUser(true)" style="background: #3897f0;">توثيق <i class="fa-solid fa-circle-check"></i></button>
+            <button onclick="verifyUser(false)" style="background: #555;">إلغاء التوثيق</button>
+        </div>
+        <button onclick="banUser(true)" style="background: red; color: white;">حظر الحساب 🚫</button>
+    </div>
+
+    <div class="card">
+        <h2>📢 إرسال بث للجميع</h2>
+        <textarea id="global-msg" rows="3" placeholder="اكتب الرسالة هنا..."></textarea>
+        <input type="text" id="global-link" placeholder="رابط خارجي (اختياري)">
+        <button onclick="sendGlobalAnnouncement()" style="background: #fff; color: #000;">إرسال فوراً 🚀</button>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDnojL76ZhOaeVg5-0O5WdBwMUtAjfrJKU",
+        authDomain: "chat-43dea.firebaseapp.com",
+        databaseURL: "https://chat-43dea-default-rtdb.firebaseio.com",
+        projectId: "chat-43dea",
+        storageBucket: "chat-43dea.firebasestorage.app",
+        messagingSenderId: "827475356002",
+        appId: "1:827475356002:web:ffdb5140d02ab1e237e43b"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    db.ref('users').on('value', (snap) => {
+        const div = document.getElementById('requests-list');
+        div.innerHTML = "";
+        snap.forEach(child => {
+            const user = child.val();
+            const id = child.key;
+            let statusText = user.status === 'active' ? '<span style="color:#0f0">نشط</span>' : '<span style="color:orange">معلق</span>';
+            let vBadge = user.verified ? '<i class="fa-solid fa-circle-check" style="color:#3897f0; margin-right:5px;"></i>' : '';
+            
+            div.innerHTML += `
+                <div class="user-row">
+                    <div>
+                        <b>${user.username}</b> ${vBadge} <small>(${id})</small><br>
+                        ${statusText}
+                    </div>
+                    ${user.status !== 'active' ? `<button onclick="approveUser('${id}')" style="width:auto; padding:5px 10px; font-size:12px;">قبول</button>` : ''}
+                </div>`;
+        });
+    });
+
+    function approveUser(id) { db.ref('users/' + id).update({ status: 'active' }); }
+    function updateCoins() {
+        const id = document.getElementById('target-id').value;
+        const amount = parseInt(document.getElementById('coins-amount').value);
+        db.ref('users/' + id + '/coins').transaction(c => (c || 0) + amount);
+        alert("تم التعديل!");
+    }
+    function verifyUser(val) {
+        const id = document.getElementById('target-id').value;
+        db.ref('users/' + id).update({ verified: val });
+        alert("تم تحديث التوثيق ✔️");
+    }
+    function banUser(val) {
+        const id = document.getElementById('target-id').value;
+        db.ref('users/' + id).update({ banned: val });
+        alert("تم!");
+    }
+    function sendGlobalAnnouncement() {
+        const msg = document.getElementById('global-msg').value;
+        const link = document.getElementById('global-link').value;
+        if(!msg) return alert("اكتب رسالة");
+        db.ref('adminMessages/global').set({ message: msg, link: link, time: Date.now() })
+        .then(() => { alert("تم البث لجميع المستخدمين"); document.getElementById('global-msg').value = ""; });
+    }
+</script>
+</body>
+</html>
